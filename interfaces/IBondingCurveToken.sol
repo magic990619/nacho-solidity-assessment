@@ -8,10 +8,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 /// @notice Interface for BondingCurveToken contract
 interface IBondingCurveToken is IERC20 {
     /*//////////////////////////////////////////////////////////////
-                                ERRORS
-    //////////////////////////////////////////////////////////////*/
-
-    /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
@@ -23,4 +19,19 @@ interface IBondingCurveToken is IERC20 {
     /*//////////////////////////////////////////////////////////////
                                 FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Buy tokens with ETH
+    /// @param amount The amount of tokens to buy
+    /// @dev The amount of ETH sent must be greater than 0, and refund exceed ETC
+    function buyTokens(uint256 amount) external payable;
+
+    /// @notice Sell tokens back for ETH
+    /// @param amount The amount of tokens to sell
+    /// @dev The amount of tokens to sell must be greater than 0
+    function sellTokens(uint256 amount) external;
+
+    /// @notice Withdraw ETH from the contract to owner
+    /// @param amount The amount of ETH to withdraw
+    /// @dev Only the owner can call this function
+    function withdraw(uint256 amount) external;
 }
