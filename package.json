@@ -1,0 +1,24 @@
+{
+  "name": "nacho-solidity-assessment",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/magic990619/nacho-solidity-assessment.git"
+  },
+  "keywords": [],
+  "author": "0xMagic",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/magic990619/nacho-solidity-assessment/issues"
+  },
+  "homepage": "https://github.com/magic990619/nacho-solidity-assessment#readme",
+  "description": "",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
+    "hardhat": "^2.22.19"
+  }
+}
