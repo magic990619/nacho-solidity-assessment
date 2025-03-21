@@ -1,6 +1,6 @@
 # Bonding Curve Token Project
 
-This project demonstrates an advanced Hardhat setup featuring a Bonding Curve Token with a dynamic pricing model (**Exponential Curve**) via Hardhat Ignition.
+This project demonstrates an advanced Hardhat setup featuring a **Exponential Bonding Curve Token** with a dynamic pricing model (**Exponential Curve**) via Hardhat Ignition.
 
 ## Overview
 
@@ -15,11 +15,85 @@ This project demonstrates an advanced Hardhat setup featuring a Bonding Curve To
 - Comprehensive test suite using Hardhat and Viem.
 - **MaxSupply Constraint**: Enforces an upper limit on the total number of tokens that can be minted.
 
-## Bonding Curve Formula Explanation
+## Exponential Bonding Curve Formula Explanation
 
 A bonding curve is a mathematical relationship between token price and token supply. In this contract, the price of the token increases as more tokens are minted and decreases when tokens are burned (sold back).
 
-- **Exponential Curve**: Here, each token purchase increases the price by a fixed percentage. I implemented this as `Price_n = Price_{n-1} * 1.01` (i.e., `1%` increase per token). This means if the current token price is `P`, the next token’s price will be `P * 1.01`. Over many tokens, this produces exponential growth in price. The initial price is again set to `0.01 ETH`, and with each token minted, `price = price * 1.01`. This curve grows even faster than the quadratic in the long run, ensuring that later tokens become very expensive, heavily rewarding early buyers​. (The factor `1.01` is an example; it could be configured differently for other exponential curves.)
+For an ERC20 token with 18 decimals, we define:
+
+- **Base Price (\($P_0$\))**: The initial price for the first token (e.g., 0.01 ETH, represented as `1e16` Wei).
+- **Growth Factor (\($f$\))**: A multiplier representing the percentage increase per token. It is defined as:
+
+  $$
+  f = \frac{\text{FACTOR\_NUM}}{\text{FACTOR\_DEN}}
+  $$
+
+  For example, if `FACTOR_NUM = 101` and `FACTOR_DEN = 100`, then \( $f = 1.01$ \) (a 1% increase per token).
+
+- **Current Supply (\($S$\))**: The number of tokens already minted (measured in whole tokens).
+
+### Price of the Next Token
+
+The price for the next token when the current supply is \( $S$ \) is given by:
+
+$$
+P_S = P_0 \times f^S
+$$
+
+This means:
+
+- At supply \( $S=0$ \): \( $P_0$ \)
+- At supply \( $S=1$ \): \( $P_0 \times 1.01$ \)
+- At supply \( $S=2$ \): \( $P_0 \times 1.01^2$ \)
+- and so on.
+
+### Total Cost to Mint Tokens
+
+If you want to mint tokens such that the supply goes from \( $S_0$ \) to \( $S_1$ \) (i.e., you mint \( $T = S_1 - S_0$ \) tokens), the total cost is the sum of the prices for each token in that range:
+
+$$
+\text{Total Cost} = \sum_{i=S_0}^{S_1 - 1} \left( P_0 \times f^i \right)
+$$
+
+Since this is a geometric series, it can be expressed in closed form:
+
+$$
+\text{Total Cost} = P_0 \times \frac{f^{S_1} - f^{S_0}}{f - 1}
+$$
+
+#### Example
+
+Assume:
+
+- \( $P_0 = 0.01$ \) ETH
+- \( $f = 1.01$ \)
+
+To mint the first token (from \( $S_0 = 0$ \) to \( $S_1 = 1$ \)):
+
+$$
+\text{Cost} = 0.01 \times \frac{1.01^1 - 1.01^0}{1.01 - 1} = 0.01 \times \frac{1.01 - 1}{0.01} = 0.01 \text{ ETH}
+$$
+
+To mint two tokens (from \( $S_0 = 0$ \) to \( $S_1 = 2$ \)):
+
+$$
+\text{Cost} = 0.01 \times \frac{1.01^2 - 1}{0.01} = 0.01 \times \frac{1.0201 - 1}{0.01} = 0.01 \times 2.01 = 0.0201 \text{ ETH}
+$$
+
+Here, the cost is the sum of:
+
+- One token: 0.01 ETH
+- Two tokens: approximately 0.0101 ETH
+
+### Handling 18 Decimal Tokens
+
+All values (prices, supplies, and costs) are scaled by \( $10^{18}$ \) to match the 18 decimal places of the ERC20 standard. The contract uses fixed‑point arithmetic to maintain this precision.
+
+[ABDK Libraries for Solidity](https://www.npmjs.com/package/abdk-libraries-solidity) (Used this library in the contract for fixed-point mathematical functions)
+
+---
+
+This model ensures that the token price increases exponentially with the supply, rewarding early buyers and creating a clear, deterministic pricing mechanism for token minting and burning.
 
 ## MaxSupply Explanation
 
