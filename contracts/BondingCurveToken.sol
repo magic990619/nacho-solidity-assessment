@@ -6,12 +6,13 @@ import "../interfaces/IBondingCurveToken.sol";
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "abdk-libraries-solidity/ABDKMath64x64.sol";
 
 /// @title BondingCurveToken
 /// @notice ERC20 Contract with a bondig curve pricing model (exponential)
-/// @dev Inherited from ERC20, Ownable
-contract BondingCurveToken is IBondingCurveToken, ERC20, Ownable {
+/// @dev Inherited from ERC20, Ownable, ReentrancyGuard
+contract BondingCurveToken is IBondingCurveToken, ERC20, Ownable, ReentrancyGuard {
     // Constants
     uint256 public constant BASE_PRICE = 1e16; // Initial Price: 0.01 ETH
     uint256 public constant FACTOR_NUM = 101; // Price multiplier: 1.01 = 101 / 100
@@ -25,7 +26,7 @@ contract BondingCurveToken is IBondingCurveToken, ERC20, Ownable {
     }
 
     /// @inheritdoc IBondingCurveToken
-    function buyTokens(uint256 amount) external payable override {
+    function buyTokens(uint256 amount) external payable override nonReentrant {
         require(amount > 0, "Amount must be greater than 0");
         require(totalSupply() + amount <= MAX_SUPPLY, "Max supply exceeded");
         require(msg.value > 0, "ETH sent must be greater than 0");
@@ -49,7 +50,7 @@ contract BondingCurveToken is IBondingCurveToken, ERC20, Ownable {
     }
 
     /// @inheritdoc IBondingCurveToken
-    function sellTokens(uint256 amount) external override {
+    function sellTokens(uint256 amount) external override nonReentrant {
         require(amount > 0, "Amount must be greater than 0");
         require(balanceOf(msg.sender) >= amount, "Not enough tokens to sell");
 
@@ -69,7 +70,7 @@ contract BondingCurveToken is IBondingCurveToken, ERC20, Ownable {
     }
 
     /// @inheritdoc IBondingCurveToken
-    function withdraw(uint256 amount) external override onlyOwner {
+    function withdraw(uint256 amount) external override onlyOwner nonReentrant {
         require(address(this).balance >= amount, "Not enough ETH");
         payable(owner()).transfer(amount);
     }
