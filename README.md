@@ -49,10 +49,46 @@ The **MaxSupply** is a predefined cap on the total number of tokens that can eve
   ```shell
   npm run test
   ```
-- Deploy Contracts
+- Deploy Contracts & Verify
 
   ```shell
   npm run deploy
+  ```
+
+## Contract Deployed (Sepolia Network)
+
+[BondingCurveToken - 0x208a107200EA433810e3A94bFaB6e8b3bE29ef26](https://sepolia.etherscan.io/address/0x208a107200EA433810e3A94bFaB6e8b3bE29ef26)
+
+```
+BASE_PRICE: 10000000000000000n (0.01 ETH)
+FACTOR_NUM: 101
+FACTOR_DEN: 100
+currentPrice: 10000000000000000n
+```
+
+### Some Test Transactions
+
+- Buy 1 Token
+  [Tx](https://sepolia.etherscan.io/tx/0x704a4887d8e94a2ccea05d4b6e4667fbf138e3d7d0176b55185db21977474b13)
+
+  ```
+  currentPrice: 10099999999999999n
+  totalSupply: 1000000000000000000n (1 BCT)
+  ```
+
+- Buy 2.5 Token again
+  [Tx](https://sepolia.etherscan.io/tx/0x137c42836b419d4150372b851e2d1675cc99c58b6a8da4fecbace34d9fee124d)
+
+  ```
+  currentPrice: 10354396902316474n
+  totalSupply: 3500000000000000000n (3.5 BCT)
+  ```
+
+- Sell 1.5 Token
+  [Tx](https://sepolia.etherscan.io/tx/0x04672262b45b19ca50ee2e322e5f18966218aed9e430e740c2d73d39266ac763)
+  ```
+  currentPrice: 10200999999999999n
+  totalSupply: 2000000000000000000n (2 BCT)
   ```
 
 ## Author

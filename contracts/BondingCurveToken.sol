@@ -6,6 +6,7 @@ import "../interfaces/IBondingCurveToken.sol";
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "abdk-libraries-solidity/ABDKMath64x64.sol";
 
 /// @title BondingCurveToken
 /// @notice ERC20 Contract with a bondig curve pricing model (exponential)
@@ -29,24 +30,22 @@ contract BondingCurveToken is IBondingCurveToken, ERC20, Ownable {
         require(totalSupply() + amount <= MAX_SUPPLY, "Max supply exceeded");
         require(msg.value > 0, "ETH sent must be greater than 0");
 
-        uint256 cost = 0;
-        uint256 price = currentPrice;
-        for (uint256 i = 0; i < amount; i++) {
-            cost += price;
-            price = (price * FACTOR_NUM) / FACTOR_DEN;
-        }
+        uint256 initialSupply = totalSupply();
+        uint256 finalSupply = initialSupply + amount;
 
-        require(msg.value >= cost, "Insufficient ETH sent");
+        uint256 totalCost = calculateExponentialCost(initialSupply, finalSupply);
+        
+        require(msg.value >= totalCost, "Insufficient ETH sent");
 
-        currentPrice = price; // Update global price
+        currentPrice = getPriceAtSupply(finalSupply); // Update global price
         _mint(msg.sender, amount);
 
-        uint256 ethRefund = msg.value - cost;
+        uint256 ethRefund = msg.value - totalCost;
         if (ethRefund > 0) {
             payable(msg.sender).transfer(ethRefund); // Refund
         }
 
-        emit TokensBought(msg.sender, amount, cost);
+        emit TokensBought(msg.sender, amount, totalCost);
     }
 
     /// @inheritdoc IBondingCurveToken
@@ -54,26 +53,67 @@ contract BondingCurveToken is IBondingCurveToken, ERC20, Ownable {
         require(amount > 0, "Amount must be greater than 0");
         require(balanceOf(msg.sender) >= amount, "Not enough tokens to sell");
 
-        uint256 price = currentPrice;
-        uint256 cost = 0;
-        for (uint256 i = 0; i < amount; i++) {
-            cost += price;
-            price = (price * FACTOR_DEN) / FACTOR_NUM;
-        }
+        uint256 initialSupply = totalSupply();
+        uint256 finalSupply = initialSupply - amount;
 
-        require(address(this).balance >= cost, "Not enough ETH in contract");
+        uint256 refundAmount = calculateExponentialCost(finalSupply, initialSupply);
+        
+        require(address(this).balance >= refundAmount, "Not enough ETH in contract");
 
         _burn(msg.sender, amount);
-        currentPrice = price; // Update global price
+        currentPrice = getPriceAtSupply(finalSupply); // Update global price
 
-        payable(msg.sender).transfer(cost); // Send ETH
+        payable(msg.sender).transfer(refundAmount); // Send ETH
 
-        emit TokensSold(msg.sender, amount, cost);
+        emit TokensSold(msg.sender, amount, refundAmount);
     }
 
     /// @inheritdoc IBondingCurveToken
-    function withdraw(uint256 amount) external onlyOwner {
+    function withdraw(uint256 amount) external override onlyOwner {
         require(address(this).balance >= amount, "Not enough ETH");
         payable(owner()).transfer(amount);
+    }
+
+    /// @notice Calculates the total cost for minting or burning tokens using an exponential price formula with fixed-point math
+    /// @param startSupply The supply before minting or burning (in token wei units)
+    /// @param endSupply The supply after minting or burning (in token wei units)
+    /// @return totalCost The total ETH cost in Wei
+    function calculateExponentialCost(uint256 startSupply, uint256 endSupply) public pure returns (uint256 totalCost) {
+        require(startSupply < endSupply, "Invalid supply range");
+        // Convert token amounts to 64.64 fixed‑point by dividing by 1e18
+        int128 startSupplyFixed = ABDKMath64x64.div(ABDKMath64x64.fromUInt(startSupply), ABDKMath64x64.fromUInt(1e18));
+        int128 endSupplyFixed = ABDKMath64x64.div(ABDKMath64x64.fromUInt(endSupply), ABDKMath64x64.fromUInt(1e18));
+
+        // Get the multiplier as fixed-point: FACTOR_NUM / FACTOR_DEN
+        int128 factor = ABDKMath64x64.div(ABDKMath64x64.fromUInt(FACTOR_NUM), ABDKMath64x64.fromUInt(FACTOR_DEN));
+
+        int128 startSupplyPowered = powFractional(factor, startSupplyFixed);
+        int128 endSupplyPowered = powFractional(factor, endSupplyFixed);
+        
+        // Divider = factor - 1
+        int128 divider = ABDKMath64x64.sub(factor, ABDKMath64x64.fromUInt(1));
+        
+        int128 diff = ABDKMath64x64.sub(endSupplyPowered, startSupplyPowered);
+
+        // Divide the difference by (factor - 1)
+        diff = ABDKMath64x64.div(diff, divider);
+        // Multiply by BASE_PRICE and convert back to uint256
+        totalCost = ABDKMath64x64.mulu(diff, BASE_PRICE);
+    }
+
+    /// @notice Returns the price of the next token at a given supply level using fixed‑point math
+    /// @param supply The supply level (in token wei units)
+    /// @return price The price of the next token in Wei
+    function getPriceAtSupply(uint256 supply) public pure returns (uint256 price) {
+        // Convert supply to fixed‑point value: (supply / 1e18)
+        int128 supplyFixed = ABDKMath64x64.div(ABDKMath64x64.fromUInt(supply), ABDKMath64x64.fromUInt(1e18));
+        int128 factor = ABDKMath64x64.div(ABDKMath64x64.fromUInt(FACTOR_NUM), ABDKMath64x64.fromUInt(FACTOR_DEN));
+        int128 powered = powFractional(factor, supplyFixed);
+        price = ABDKMath64x64.mulu(powered, BASE_PRICE);
+    }
+
+    function powFractional(int128 x, int128 y) internal pure returns (int128) {
+        // x^y = exp_2(y * log_2(x))
+        return ABDKMath64x64.exp_2(ABDKMath64x64.mul(ABDKMath64x64.log_2(x), y));
     }
 }
