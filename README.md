@@ -99,6 +99,56 @@ This model ensures that the token price increases exponentially with the supply,
 
 The **MaxSupply** is a predefined cap on the total number of tokens that can ever be minted by the contract. This limit ensures scarcity and can help prevent uncontrolled token inflation. In this project, the MaxSupply is set to **1 billion** tokens. Once this cap is reached, the contract will no longer allow minting new tokens, protecting the token’s value by limiting the total supply.
 
+## Security: Reentrancy Guard and Ownable Access Control
+
+To safeguard the integrity of our smart contract, we have implemented multiple security measures:
+
+### Reentrancy Guard
+
+A common vulnerability in smart contracts is the reentrancy attack. In such an attack, a malicious contract might try to call back into a function before its previous execution completes, potentially draining funds or corrupting the state.
+
+To protect against this, our contract inherits from [OpenZeppelin’s ReentrancyGuard](https://docs.openzeppelin.com/contracts/4.x/api/security#ReentrancyGuard) and uses the `nonReentrant` modifier on functions that interact with ETH transfers, such as:
+
+- **buyTokens**: Prevents reentrant calls while processing token purchases and ETH refunds.
+- **sellTokens**: Protects the function that burns tokens and issues an ETH refund when tokens are sold.
+- **withdraw**: Although restricted to the contract owner, it is also secured with nonReentrant for defense in depth.
+
+Example usage in the contract:
+
+```solidity
+function buyTokens(uint256 amount) external payable override nonReentrant {
+    // function logic...
+}
+
+function sellTokens(uint256 amount) external override nonReentrant {
+    // function logic...
+}
+
+function withdraw(uint256 amount) external override onlyOwner nonReentrant {
+    // function logic...
+}
+```
+
+By marking these functions with nonReentrant, we ensure that no function can be re-entered until its execution completes, thereby reducing the risk of reentrancy vulnerabilities.
+
+#### Why Even Secure a 'Withdraw' Function?
+
+Even though the withdraw function is restricted to the contract owner (via the onlyOwner modifier), including a reentrancy guard adds an extra layer of security. This is important if:
+
+- The owner's address is a contract that could be manipulated.
+- Future modifications change the function's behavior or access restriction
+
+### Ownable Access Control
+
+Our contract also inherits from [OpenZeppelin’s Ownable](https://docs.openzeppelin.com/contracts/4.x/api/access#Ownable), ensuring that only the designated owner can perform sensitive functions such as the withdrawal of ETH from the contract. This control helps prevent unauthorized access and enhances overall security.
+
+### Why These Measures Matter
+
+- Reentrancy Protection: Prevents malicious contracts from exploiting recursive calls to manipulate the contract’s balance or state.
+- Ownable Pattern: Ensures that only a trusted account (the owner) can perform administrative tasks, reducing the risk of unauthorized actions.
+
+By combining these security patterns, our contract is better protected against external attacks and internal misconfigurations, providing a robust foundation for our bonding curve token project.
+
 ## Installation
 
 1. Clone the repository
@@ -164,6 +214,20 @@ currentPrice: 10000000000000000n
   currentPrice: 10200999999999999n
   totalSupply: 2000000000000000000n (2 BCT)
   ```
+
+---
+
+## !!Withdraw Function: For Development and Testing Only
+
+**Important:** The `withdraw` function included in this contract is provided solely for development and testing purposes. In a production-grade token designed to be trusted by a community, the following practices are strongly recommended:
+
+1. **No Withdraw Function:**  
+   In a trusted token contract, all ETH held by the contract should be exclusively tied to token minting and burning operations, reflecting the dynamics of the bonding curve. By disallowing withdrawals, the ETH balance remains transparent and is driven solely by the bonding curve logic, ensuring that funds are not diverted for any other purpose.
+
+2. **Immutable ETH Reserve:**  
+   The ETH corresponding to minted tokens should remain permanently in the contract, with its balance only adjusting during token minting (buying) and burning (selling). This immutability guarantees that the economic model remains predictable and transparent for all token holders, as all funds are governed entirely by the bonding curve mechanism.
+
+Eliminating the `withdraw` function in the final production version helps build greater trust within the community, ensuring that all ETH reserves are transparently managed and that there is no risk of unauthorized withdrawals.
 
 ## Author
 
